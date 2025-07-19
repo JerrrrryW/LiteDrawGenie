@@ -1,0 +1,68 @@
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; padding: 16px; margin: 0; }
+  textarea { width: 100%; height: 80px; border: 1px solid #ccc; border-radius: 4px; padding: 8px; box-sizing: border-box; margin-top: 8px; }
+  button { width: 100%; padding: 10px; background-color: #1a73e8; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 16px; }
+  button:disabled { background-color: #ccc; cursor: not-allowed; }
+  #loader { text-align: center; margin-top: 10px; display: none; }
+</style>
+
+<h2>AI Image Generator</h2>
+<p>输入你的想法，然后点击生成。</p>
+
+<label for="prompt">Prompt:</label>
+<textarea id="prompt">A high-quality 3D render of a cute, fluffy cat wearing a tiny wizard hat.</textarea>
+
+<button id="generate">Generate Image</button>
+<div id="loader">Generating, please wait...</div>
+
+<script>
+  const promptInput = document.getElementById('prompt');
+  const generateBtn = document.getElementById('generate');
+  const loader = document.getElementById('loader');
+
+  generateBtn.onclick = () => {
+    const prompt = promptInput.value;
+    if (!prompt) {
+      alert('Please enter a prompt.');
+      return;
+    }
+
+    // 显示加载提示，禁用按钮
+    loader.style.display = 'block';
+    generateBtn.disabled = true;
+
+    // 向本地服务器发送请求
+    fetch('http://127.0.0.1:5001/generate-image', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ prompt: prompt }),
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      
+      // Base64 转为 Uint8Array
+      const base64 = data.image_base64;
+      const binaryString = atob(base64);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      
+      // 将图片数据发送到 Figma 主进程
+      parent.postMessage({ pluginMessage: { type: 'create-image', imageBytes: bytes } }, '*');
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('Failed to generate image: ' + error.message);
+      // 恢复按钮状态
+      loader.style.display = 'none';
+      generateBtn.disabled = false;
+    });
+  };
+</script>
