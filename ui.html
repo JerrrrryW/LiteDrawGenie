@@ -1,68 +1,146 @@
 <style>
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; padding: 16px; margin: 0; }
-  textarea { width: 100%; height: 80px; border: 1px solid #ccc; border-radius: 4px; padding: 8px; box-sizing: border-box; margin-top: 8px; }
-  button { width: 100%; padding: 10px; background-color: #1a73e8; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 16px; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; padding: 16px; margin: 0; font-size: 14px; }
+  .container { display: flex; flex-direction: column; gap: 12px; }
+  label { font-weight: bold; color: #333; }
+  textarea { width: 100%; border: 1px solid #ccc; border-radius: 4px; padding: 8px; box-sizing: border-box; resize: vertical; }
+  #prompt { height: 60px; }
+  #enhanced-prompt { height: 100px; background-color: #fff; color: #333; } /* 改为白色背景，表示可编辑 */
+  .button-group { display: flex; gap: 8px; }
+  button { flex-grow: 1; padding: 10px; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
+  #enhance { background-color: #4285f4; } /* 优化按钮用蓝色 */
+  #generate { background-color: #34a853; } /* 生成按钮用绿色 */
   button:disabled { background-color: #ccc; cursor: not-allowed; }
-  #loader { text-align: center; margin-top: 10px; display: none; }
+  #loader { text-align: center; margin-top: 10px; display: none; color: #666; }
 </style>
 
-<h2>AI Image Generator</h2>
-<p>输入你的想法，然后点击生成。</p>
+<div class="container">
+  <h2>AI Co-Pilot Generator</h2>
 
-<label for="prompt">Prompt:</label>
-<textarea id="prompt">A high-quality 3D render of a cute, fluffy cat wearing a tiny wizard hat.</textarea>
+  <div>
+    <label for="prompt">你的想法 (Your Idea):</label>
+    <textarea id="prompt">a wizard cat</textarea>
+    <button id="enhance" style="width: 100%; margin-top: 8px;">1. Enhance Prompt</button>
+  </div>
+  
+  <div>
+    <label for="enhanced-prompt">最终Prompt (Final Prompt):</label>
+    <textarea id="enhanced-prompt" placeholder="Click 'Enhance' above, or write your own detailed prompt here..."></textarea>
+    <button id="generate" style="width: 100%; margin-top: 8px;">2. Generate Image</button>
+  </div>
 
-<button id="generate">Generate Image</button>
-<div id="loader">Generating, please wait...</div>
+  <div id="loader">Working on it...</div>
+</div>
 
 <script>
   const promptInput = document.getElementById('prompt');
+  const enhancedPromptTextarea = document.getElementById('enhanced-prompt');
+  const enhanceBtn = document.getElementById('enhance');
   const generateBtn = document.getElementById('generate');
   const loader = document.getElementById('loader');
 
-  generateBtn.onclick = () => {
-    const prompt = promptInput.value;
-    if (!prompt) {
-      alert('Please enter a prompt.');
+  // --- 初始化按钮状态 ---
+  // 仅当最终Prompt文本框中有内容时，才允许生成图片
+  const updateGenerateButtonState = () => {
+    generateBtn.disabled = enhancedPromptTextarea.value.trim() === '';
+  };
+  enhancedPromptTextarea.addEventListener('input', updateGenerateButtonState);
+  updateGenerateButtonState(); // 页面加载时执行一次
+
+  // --- 按钮点击事件 ---
+
+  // 1. 优化Prompt按钮
+  enhanceBtn.onclick = async () => {
+    const userPrompt = promptInput.value.trim();
+    if (!userPrompt) {
+      alert('Please enter your idea first.');
       return;
     }
 
-    // 显示加载提示，禁用按钮
-    loader.style.display = 'block';
-    generateBtn.disabled = true;
-
-    // 向本地服务器发送请求
-    fetch('http://127.0.0.1:5001/generate-image', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ prompt: prompt }),
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.error) {
-        throw new Error(data.error);
-      }
-      
-      // Base64 转为 Uint8Array
-      const base64 = data.image_base64;
-      const binaryString = atob(base64);
-      const len = binaryString.length;
-      const bytes = new Uint8Array(len);
-      for (let i = 0; i < len; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      
-      // 将图片数据发送到 Figma 主进程
-      parent.postMessage({ pluginMessage: { type: 'create-image', imageBytes: bytes } }, '*');
-    })
-    .catch(error => {
-      console.error('Error:', error);
-      alert('Failed to generate image: ' + error.message);
-      // 恢复按钮状态
-      loader.style.display = 'none';
-      generateBtn.disabled = false;
-    });
+    setLoading(true, 'Enhancing your prompt...');
+    try {
+      const enhancedPrompt = await enhancePromptApi(userPrompt);
+      enhancedPromptTextarea.value = enhancedPrompt;
+      updateGenerateButtonState(); // 更新生成按钮的状态
+    } catch (error) {
+      handleError(error, 'Failed to enhance prompt.');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  // 2. 生成图片按钮
+  generateBtn.onclick = async () => {
+    const finalPrompt = enhancedPromptTextarea.value.trim();
+    // 这一步检查是双重保险
+    if (!finalPrompt) {
+      alert('The Final Prompt is empty. Please enhance an idea or write one yourself.');
+      return;
+    }
+
+    setLoading(true, 'Generating the image...');
+    try {
+      const imageBytes = await generateImageApi(finalPrompt);
+      parent.postMessage({ pluginMessage: { type: 'create-image', imageBytes: imageBytes } }, '*');
+    } catch (error) {
+      handleError(error, 'Failed to generate image.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  // --- API 调用封装 ---
+
+  async function enhancePromptApi(originalPrompt) {
+    const instruction = `Please rewrite and enrich the following user idea into a detailed, descriptive prompt suitable for a high-quality AI image generator. Focus on visual details like style (e.g., "cinematic", "3D render", "oil painting"), lighting, composition, and mood. The final prompt should be a single, concise paragraph in English. Here is the user's idea: "${originalPrompt}"`;
+
+    const response = await fetch('http://127.0.0.1:5001/generate-text', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: instruction }),
+    });
+
+    const data = await response.json();
+    if (data.error || !response.ok) throw new Error(data.error);
+    return data.text_response.trim().replace(/^"|"$/g, '');
+  }
+
+  async function generateImageApi(promptForImage) {
+    const response = await fetch('http://127.0.0.1:5001/generate-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: promptForImage }),
+    });
+
+    const data = await response.json();
+    if (data.error || !response.ok) throw new Error(data.error);
+    
+    const base64 = data.image_base64;
+    const binaryString = atob(base64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes;
+  }
+
+  // --- 辅助函数 ---
+
+  function setLoading(isLoading, message = '') {
+    loader.textContent = message;
+    loader.style.display = isLoading ? 'block' : 'none';
+    enhanceBtn.disabled = isLoading;
+    // 只有在加载时禁用生成按钮，加载结束时，它的状态由文本框内容决定
+    if (isLoading) {
+      generateBtn.disabled = true;
+    } else {
+      updateGenerateButtonState();
+    }
+  }
+
+  function handleError(error, defaultMessage) {
+    console.error('Error:', error);
+    alert(`${defaultMessage}\nDetails: ${error.message}`);
+  }
 </script>

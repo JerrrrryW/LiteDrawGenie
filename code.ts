@@ -1,7 +1,9 @@
 // code.ts
 
-figma.showUI(__html__, { width: 340, height: 280, title: "AI Image Generator" });
+// 增加了UI的高度以容纳新的文本框
+figma.showUI(__html__, { width: 340, height: 800, title: "AI Image Enhancer & Generator" });
 
+// 这部分代码完全不需要修改，因为它只负责接收和处理最终的图片数据
 figma.ui.onmessage = async (msg) => {
   if (msg.type === 'create-image') {
     const imageBytes = msg.imageBytes;
