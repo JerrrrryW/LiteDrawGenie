@@ -1,98 +1,509 @@
 <style>
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; padding: 16px; margin: 0; font-size: 14px; }
-  .container { display: flex; flex-direction: column; gap: 12px; }
-  label { font-weight: bold; color: #333; }
-  textarea { width: 100%; border: 1px solid #ccc; border-radius: 4px; padding: 8px; box-sizing: border-box; resize: vertical; }
-  #prompt { height: 60px; }
-  #enhanced-prompt { height: 100px; background-color: #fff; color: #333; } /* 改为白色背景，表示可编辑 */
-  .button-group { display: flex; gap: 8px; }
-  button { flex-grow: 1; padding: 10px; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
-  #enhance { background-color: #4285f4; } /* 优化按钮用蓝色 */
-  #generate { background-color: #34a853; } /* 生成按钮用绿色 */
-  button:disabled { background-color: #ccc; cursor: not-allowed; }
-  #loader { text-align: center; margin-top: 10px; display: none; color: #666; }
+  /* 引入现代字体 (可选，但推荐) */
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg-deep: #131314;
+    --bg-surface: #1e1f20;
+    --bg-control: #202124;
+    --border-subtle: #3c4043;
+    --border-interactive: #8ab4f8;
+    --text-primary: #e8eaed;
+    --text-secondary: #bdc1c6;
+    --text-placeholder: #9aa0a6;
+    --accent-primary: #8ab4f8;
+    --accent-secondary: #c58af9;
+    --text-on-accent: #202124;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    padding: 0;
+    margin: 0;
+    font-size: 14px;
+    background-color: var(--bg-deep);
+    color: var(--text-primary);
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .ai-center-container {
+    display: flex;
+    height: 100vh;
+    /* 占满插件整个高度 */
+  }
+
+  /* --- 1. 左侧导航栏 --- */
+  .sidebar {
+    width: 200px;
+    background-color: var(--bg-deep);
+    border-right: 1px solid var(--border-subtle);
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    box-sizing: border-box;
+    flex-shrink: 0;
+  }
+
+  .sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 8px;
+    margin-bottom: 16px;
+  }
+
+  .sidebar-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex-grow: 1;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  .nav-item:hover {
+    background-color: var(--bg-surface);
+    color: var(--text-primary);
+  }
+
+  .nav-item.active {
+    background: linear-gradient(90deg, rgba(138, 180, 248, 0.2), rgba(197, 138, 249, 0.1));
+    color: var(--accent-primary);
+    font-weight: 600;
+  }
+
+  .nav-item.active svg {
+    stroke: var(--accent-primary);
+  }
+
+  .nav-item:disabled {
+    color: #5f6368;
+    cursor: not-allowed;
+  }
+
+  .nav-item:disabled:hover {
+    background-color: transparent;
+  }
+
+  .nav-item svg {
+    stroke: var(--text-secondary);
+    transition: stroke 0.2s ease;
+  }
+
+  .sidebar-footer {
+    margin-top: auto;
+  }
+
+  /* --- 2. 右侧主工作区 --- */
+  .main-content {
+    flex-grow: 1;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    overflow-y: auto;
+  }
+
+  /* 2.1 控制面板 */
+  .control-deck {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  label {
+    font-weight: 500;
+    font-size: 12px;
+    color: var(--text-secondary);
+    display: block;
+    margin-bottom: 8px;
+  }
+
+  textarea {
+    width: 100%;
+    background-color: var(--bg-control);
+    color: var(--text-primary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 12px;
+    box-sizing: border-box;
+    resize: vertical;
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 80px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  textarea:focus {
+    outline: none;
+    border-color: var(--border-interactive);
+    box-shadow: 0 0 0 3px rgba(138, 180, 248, 0.15);
+  }
+
+  .models-section {
+    display: flex;
+    gap: 16px;
+  }
+
+  .model-selector {
+    flex-grow: 1;
+  }
+
+  select {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border-subtle);
+    background-color: var(--bg-control);
+    color: var(--text-primary);
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  select:focus {
+    outline-color: var(--border-interactive);
+  }
+
+  #deconstruct-btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    background-color: var(--accent-primary);
+    color: var(--text-on-accent);
+  }
+
+  #deconstruct-btn:hover {
+    background-color: #9ac0f9;
+  }
+
+  #deconstruct-btn:active {
+    transform: scale(0.98);
+  }
+
+  #loader {
+    text-align: center;
+    display: none;
+    color: var(--text-placeholder);
+  }
+
+  /* 2.2 生成结果区 */
+  .workspace {
+    border-top: 1px solid var(--border-subtle);
+    padding-top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .workspace-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .workspace-header h4 {
+    margin: 0;
+    font-size: 16px;
+  }
+
+  #compose-btn {
+    background-color: var(--bg-surface);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-subtle);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  .tasks-grid {
+    display: grid;
+    /* 响应式网格布局，每列最小280px */
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+
+  .task-card {
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 16px;
+    background-color: var(--bg-surface);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .task-card textarea {
+    min-height: 120px;
+  }
+
+  .task-card button {
+    background-color: transparent;
+    color: var(--accent-primary);
+    border: 1px solid #5f6368;
+    margin-top: 4px;
+    padding: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .task-card button:hover {
+    background-color: rgba(138, 180, 248, 0.1);
+    border-color: var(--accent-primary);
+  }
+
+  button:disabled {
+    background-color: var(--border-subtle) !important;
+    color: #80868b !important;
+    cursor: not-allowed;
+    transform: scale(1);
+    opacity: 0.7;
+  }
 </style>
 
-<div class="container">
-  <h2>AI Co-Pilot Generator</h2>
+<body>
+  <div class="ai-center-container">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#e8eaed" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round" />
+          <path d="M2 17L12 22L22 17" stroke="#e8eaed" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round" />
+          <path d="M2 12L12 17L22 12" stroke="#e8eaed" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round" />
+        </svg>
+        <h3>AI Center</h3>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="nav-item active">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M18 8C19.6569 8 21 6.65685 21 5C21 3.34315 19.6569 2 18 2C16.3431 2 15 3.34315 15 5C15 6.65685 16.3431 8 18 8Z"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path
+              d="M6 12C7.65685 12 9 10.6569 9 9C9 7.34315 7.65685 6 6 6C4.34315 6 3 7.34315 3 9C3 10.6569 4.34315 12 6 12Z"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path
+              d="M18 22C19.6569 22 21 20.6569 21 19C21 17.3431 19.6569 16 18 16C16.3431 16 15 17.3431 15 19C15 20.6569 16.3431 22 18 22Z"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M8.59 13.51L15.42 17.49" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M15.41 6.51001L8.59 10.49" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span>智能生成</span>
+        </button>
+        <button class="nav-item" disabled>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M21 16V8C21 7.46957 20.7893 6.96086 20.4142 6.58579C20.0391 6.21071 19.5304 6 19 6H5C4.46957 6 3.96086 6.21071 3.58579 6.58579C3.21071 6.96086 3 7.46957 3 8V16C3 16.5304 3.21071 17.0391 3.58579 17.4142C3.96086 17.7893 4.46957 18 5 18H19C19.5304 18 20.0391 17.7893 20.4142 17.4142C20.7893 17.0391 21 16.5304 21 16Z"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M7 14V10" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M10.5 14V10" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M14 14V10" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M17.5 14V10" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span>模型市场</span>
+        </button>
+        <button class="nav-item" disabled>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M14 10V3L12 5L10 3L8 5L6 3L4 5V10C4 11.8856 4.73173 13.7145 6.02479 15.0076C7.31786 16.3006 9.14679 17 11 17H12"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M20 15C20 16.0524 19.6923 17.0863 19.1111 17.9621C18.5298 18.838 17.702 19.5141 16.7447 19.8973"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M14 21C14.9458 20.6323 15.797 20.0075 16.4526 19.1979C17.1082 18.3883 17.5401 17.4282 17.702 16.42"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span>扩展中心</span>
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="nav-item">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M12.89 1.45L14.41 3.8L12.89 6.15H9.11L7.59 3.8L9.11 1.45H12.89ZM12.89 17.85L14.41 20.2L12.89 22.55H9.11L7.59 20.2L9.11 17.85H12.89ZM6.15 7.59L3.8 9.11L1.45 7.59V12.89L3.8 14.41L6.15 12.89V7.59ZM17.85 7.59L20.2 9.11L22.55 7.59V12.89L20.2 14.41L17.85 12.89V7.59Z"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span>设置</span>
+        </button>
+      </div>
+    </aside>
 
-  <div>
-    <label for="prompt">你的想法 (Your Idea):</label>
-    <textarea id="prompt">a wizard cat</textarea>
-    <button id="enhance" style="width: 100%; margin-top: 8px;">1. Enhance Prompt</button>
-  </div>
-  
-  <div>
-    <label for="enhanced-prompt">最终Prompt (Final Prompt):</label>
-    <textarea id="enhanced-prompt" placeholder="Click 'Enhance' above, or write your own detailed prompt here..."></textarea>
-    <button id="generate" style="width: 100%; margin-top: 8px;">2. Generate Image</button>
-  </div>
+    <main class="main-content">
+      <div class="control-deck">
+        <div class="prompt-section">
+          <label for="prompt">你的场景构想 (Your Scene Idea)</label>
+          <textarea id="prompt"
+            placeholder="e.g., a majestic phoenix flying over a volcano during a storm">a majestic phoenix flying over a volcano during a storm</textarea>
+        </div>
 
-  <div id="loader">Working on it...</div>
-</div>
+        <div class="models-section">
+          <div class="model-selector">
+            <label for="base-model">基础模型 (Base Model)</label>
+            <select id="base-model">
+              <option>Photon v1</option>
+              <option>RealVisXL v4.0</option>
+              <option disabled>SDXL 1.0 (coming soon)</option>
+            </select>
+          </div>
+          <div class="model-selector">
+            <label for="lora-model">LoRA 模型 (LoRA Model)</label>
+            <select id="lora-model">
+              <option>None</option>
+              <option>Detail Tweaker XL</option>
+              <option>Cinematic Luts</option>
+            </select>
+          </div>
+        </div>
+
+        <button id="deconstruct-btn">1. Deconstruct Idea into Layers</button>
+      </div>
+
+      <div id="loader">Working on it...</div>
+
+      <div class="workspace">
+        <div class="workspace-header">
+          <h4>生成任务 (Generation Tasks)</h4>
+          <button id="compose-btn" disabled>✨ Auto-Compose Layers</button>
+        </div>
+        <div id="tasks-container" class="tasks-grid">
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
 
 <script>
   const promptInput = document.getElementById('prompt');
-  const enhancedPromptTextarea = document.getElementById('enhanced-prompt');
-  const enhanceBtn = document.getElementById('enhance');
-  const generateBtn = document.getElementById('generate');
+  const deconstructBtn = document.getElementById('deconstruct-btn');
   const loader = document.getElementById('loader');
+  const tasksContainer = document.getElementById('tasks-container');
 
-  // --- 初始化按钮状态 ---
-  // 仅当最终Prompt文本框中有内容时，才允许生成图片
-  const updateGenerateButtonState = () => {
-    generateBtn.disabled = enhancedPromptTextarea.value.trim() === '';
-  };
-  enhancedPromptTextarea.addEventListener('input', updateGenerateButtonState);
-  updateGenerateButtonState(); // 页面加载时执行一次
-
-  // --- 按钮点击事件 ---
-
-  // 1. 优化Prompt按钮
-  enhanceBtn.onclick = async () => {
+  // --- 主按钮点击事件 ---
+  deconstructBtn.onclick = async () => {
     const userPrompt = promptInput.value.trim();
     if (!userPrompt) {
       alert('Please enter your idea first.');
       return;
     }
 
-    setLoading(true, 'Enhancing your prompt...');
+    setLoading(true, 'Deconstructing idea into layers...');
+    tasksContainer.innerHTML = ''; // 清空旧任务
+
     try {
-      const enhancedPrompt = await enhancePromptApi(userPrompt);
-      enhancedPromptTextarea.value = enhancedPrompt;
-      updateGenerateButtonState(); // 更新生成按钮的状态
+      const tasks = await deconstructIdeaApi(userPrompt);
+      displayTasks(tasks);
     } catch (error) {
-      handleError(error, 'Failed to enhance prompt.');
+      handleError(error, 'Failed to deconstruct idea. The API might have returned an unexpected format.');
     } finally {
       setLoading(false);
     }
   };
 
-  // 2. 生成图片按钮
-  generateBtn.onclick = async () => {
-    const finalPrompt = enhancedPromptTextarea.value.trim();
-    // 这一步检查是双重保险
-    if (!finalPrompt) {
-      alert('The Final Prompt is empty. Please enhance an idea or write one yourself.');
+  // --- 动态UI生成和事件处理 ---
+  function displayTasks(tasks) {
+    if (!tasks || tasks.length === 0) {
+      tasksContainer.innerHTML = '<p style="color: #666;">Could not find any layers to generate. Try a different idea.</p>';
       return;
     }
 
-    setLoading(true, 'Generating the image...');
-    try {
-      const imageBytes = await generateImageApi(finalPrompt);
-      parent.postMessage({ pluginMessage: { type: 'create-image', imageBytes: imageBytes } }, '*');
-    } catch (error) {
-      handleError(error, 'Failed to generate image.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    tasks.forEach((task, index) => {
+      // 1. 创建任务卡片的 HTML 结构
+      const card = document.createElement('div');
+      // 在 displayTasks 函数中找到这部分并替换
+      card.className = 'task-card horizontal'; // 添加一个 'horizontal' 类
+      card.innerHTML = `
+        <div class="card-content">
+          <label for="task-prompt-${index}">Layer: ${task.task_name || `Untitled Layer ${index + 1}`}</label>
+          <textarea id="task-prompt-${index}">${task.prompt || ''}</textarea>
+        </div>
+        <div class="card-actions">
+          <button id="generate-btn-${index}">2. Generate Image</button>
+          <div id="loader-${index}" class="card-loader">Generating...</div>
+        </div>
+      `;
+      tasksContainer.appendChild(card);
+
+      // 2. 为新创建的生成按钮添加点击事件
+      const generateBtn = document.getElementById(`generate-btn-${index}`);
+      const taskPromptTextarea = document.getElementById(`task-prompt-${index}`);
+      const taskLoader = document.getElementById(`loader-${index}`);
+
+      generateBtn.onclick = async () => {
+        const finalPrompt = taskPromptTextarea.value.trim();
+        if (!finalPrompt) {
+          alert('This layer prompt is empty.');
+          return;
+        }
+
+        // 局部加载状态
+        taskLoader.style.display = 'block';
+        generateBtn.disabled = true;
+        deconstructBtn.disabled = true; // 在生成任何图片时禁用主按钮
+
+        try {
+          // 调用现有的图像生成 API
+          const imageBytes = await generateImageApi(finalPrompt);
+          // 发送消息给 figma/code.ts 来创建图片
+          parent.postMessage({ pluginMessage: { type: 'create-image', imageBytes: imageBytes } }, '*');
+        } catch (error) {
+          handleError(error, `Failed to generate image for "${task.task_name}".`);
+        } finally {
+          // 恢复局部状态
+          taskLoader.style.display = 'none';
+          generateBtn.disabled = false;
+          deconstructBtn.disabled = false;
+        }
+      };
+    });
+  }
 
 
   // --- API 调用封装 ---
 
-  async function enhancePromptApi(originalPrompt) {
-    const instruction = `Please rewrite and enrich the following user idea into a detailed, descriptive prompt suitable for a high-quality AI image generator. Focus on visual details like style (e.g., "cinematic", "3D render", "oil painting"), lighting, composition, and mood. The final prompt should be a single, concise paragraph in English. Here is the user's idea: "${originalPrompt}"`;
+  async function deconstructIdeaApi(originalPrompt) {
+    // 这是核心改动：我们提供一个全新的指令，要求AI进行任务分解并返回JSON
+    const instruction = `The user wants to create a complex scene for a design project. Based on the user's idea, deconstruct it into logical, renderable layers. These layers should typically include:
+1. A 'Background': The overall environment and setting.
+2. A 'Main Subject': The primary focus of the scene.
+3. One or more 'Assets' or 'Details': Important supporting elements that can be generated separately.
+
+For each layer, define a concise 'task_name' (e.g., 'Background: Volcano', 'Main Subject: Phoenix', 'Asset: Lightning Bolts') and create a detailed, visually rich prompt suitable for a high-quality AI image generator (like Midjourney or Stable Diffusion). The prompt should be in English and focus on style, lighting, composition, color, and mood.
+
+Return the result *only* as a valid JSON array of objects, where each object has a 'task_name' key and a 'prompt' key. Do not include any other text, explanation, or markdown formatting like \`\`\`json outside of the JSON array itself.
+
+User's Idea: "${originalPrompt}"`;
 
     const response = await fetch('http://127.0.0.1:5001/generate-text', {
       method: 'POST',
@@ -102,9 +513,19 @@
 
     const data = await response.json();
     if (data.error || !response.ok) throw new Error(data.error);
-    return data.text_response.trim().replace(/^"|"$/g, '');
+
+    // 尝试解析AI返回的文本为JSON对象
+    try {
+      // 健壮性处理：有时候AI模型可能会在JSON字符串外面包裹md代码块标记
+      const cleanedText = data.text_response.trim().replace(/^```json\n|```$/g, '');
+      return JSON.parse(cleanedText);
+    } catch (e) {
+      console.error("Failed to parse JSON from API response:", data.text_response);
+      throw new Error("API did not return valid JSON.");
+    }
   }
 
+  // 这个函数保持不变，因为它完美地服务于新架构
   async function generateImageApi(promptForImage) {
     const response = await fetch('http://127.0.0.1:5001/generate-image', {
       method: 'POST',
@@ -114,7 +535,7 @@
 
     const data = await response.json();
     if (data.error || !response.ok) throw new Error(data.error);
-    
+
     const base64 = data.image_base64;
     const binaryString = atob(base64);
     const len = binaryString.length;
@@ -130,13 +551,7 @@
   function setLoading(isLoading, message = '') {
     loader.textContent = message;
     loader.style.display = isLoading ? 'block' : 'none';
-    enhanceBtn.disabled = isLoading;
-    // 只有在加载时禁用生成按钮，加载结束时，它的状态由文本框内容决定
-    if (isLoading) {
-      generateBtn.disabled = true;
-    } else {
-      updateGenerateButtonState();
-    }
+    deconstructBtn.disabled = isLoading;
   }
 
   function handleError(error, defaultMessage) {
